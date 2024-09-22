@@ -1,87 +1,93 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import Select from 'react-select';
-
-const API_URL = 'https://bfhl-nodejs-owxf.vercel.app/bfhl'; // Replace with your actual API URL
 
 function App() {
-  const [input, setInput] = useState('');
+  const [jsonInput, setJsonInput] = useState('');
+  const [isValidJson, setIsValidJson] = useState(true);
   const [response, setResponse] = useState(null);
-  const [error, setError] = useState('');
-  const [selectedOptions, setSelectedOptions] = useState([]);
+  const [dropdownOptions, setDropdownOptions] = useState([]);
 
-  const options = [
-    { value: 'numbers', label: 'Numbers' },
-    { value: 'alphabets', label: 'Alphabets' },
-    { value: 'highest_alphabet', label: 'Highest Alphabet' },
-  ];
+  // Handles changes to the input field
+  const handleInputChange = (e) => {
+    setJsonInput(e.target.value);
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setResponse(null);
-
+  // Handles submission of the form and calls the backend API
+  const handleSubmit = async () => {
     try {
-      const parsedInput = JSON.parse(input);
-      const result = await axios.post(API_URL, parsedInput);
-      setResponse(result.data);
-    } catch (err) {
-      if (err instanceof SyntaxError) {
-        setError('Invalid JSON format');
-      } else {
-        setError('An error occurred while processing your request');
-        console.error(err);
-      }
+      const parsedData = JSON.parse(jsonInput); // Parse JSON input
+      setIsValidJson(true); // Valid JSON input
+      
+      const res = await fetch('https://bfhl-nodejs-owxf.vercel.app/bfhl', { // Replace with your deployed backend API URL
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(parsedData), // Send the parsed data as the request body
+      });
+
+      const result = await res.json();
+      setResponse(result); // Store the response
+
+    } catch (error) {
+      setIsValidJson(false); // Invalid JSON input
     }
   };
 
-  const filterResponse = () => {
-    if (!response) return null;
-
-    const filteredResponse = {};
-    selectedOptions.forEach(option => {
-      if (response[option.value]) {
-        filteredResponse[option.value] = response[option.value];
-      }
-    });
-
-    return filteredResponse;
+  // Handles dropdown changes
+  const handleDropdownChange = (e) => {
+    const options = [...e.target.selectedOptions].map(option => option.value);
+    setDropdownOptions(options);
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-6 text-center">BFHL Frontend</h1>
-      <form onSubmit={handleSubmit} className="mb-6">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder='Enter JSON input (e.g., { "data": ["M","1","334","4","B"] })'
-          className="w-full p-2 border rounded mb-4 h-32"
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
+        <h1 className="text-2xl font-semibold mb-4 text-gray-700">Enter JSON Input</h1>
+
+        <textarea 
+          value={jsonInput} 
+          onChange={handleInputChange} 
+          placeholder='{"data": ["A", "C", "z"]}' 
+          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4 h-32"
         />
+
         <button 
-          type="submit" 
-          className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-200"
+          onClick={handleSubmit} 
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold"
         >
           Submit
         </button>
-      </form>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      {response && (
-        <div className="mb-4">
-          <Select
-            isMulti
-            options={options}
-            onChange={setSelectedOptions}
-            placeholder="Select filter options"
-            className="mb-4"
-          />
-          <div className="bg-gray-100 p-4 rounded">
-            <pre className="whitespace-pre-wrap break-words">
-              {JSON.stringify(filterResponse(), null, 2)}
-            </pre>
+
+        {!isValidJson && <p className="mt-2 text-red-500">Invalid JSON format</p>}
+
+        {response && (
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold mb-2 text-gray-700">Multi Filter</h2>
+            <select 
+              multiple 
+              onChange={handleDropdownChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4 h-32"
+            >
+              <option value="Alphabets">Alphabets</option>
+              <option value="Numbers">Numbers</option>
+              <option value="Highest Lowercase Alphabet">Highest Lowercase Alphabet</option>
+            </select>
+
+            <h3 className="text-lg font-semibold mb-2 text-gray-700">Filtered Response</h3>
+            <div className="text-gray-800">
+              {dropdownOptions.includes('Alphabets') && response.alphabets.length > 0 && (
+                <p>Alphabets: {response.alphabets.join(', ')}</p>
+              )}
+              {dropdownOptions.includes('Numbers') && response.numbers.length > 0 && (
+                <p>Numbers: {response.numbers.join(', ')}</p>
+              )}
+              {dropdownOptions.includes('Highest Lowercase Alphabet') && response.highest_lowercase_alphabet.length > 0 && (
+                <p>Highest Lowercase Alphabet: {response.highest_lowercase_alphabet.join(', ')}</p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
